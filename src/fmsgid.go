@@ -2,51 +2,53 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-var sqlTables = `
-create extension if not exists citext;
+type AddressTx struct {
+	Address		string 		`json:"address"`
+	Timestamp	float64 	`json:"ts"`
+	Size 		int 		`json:"size"`
+}
 
-create table if not exists address (
-    address 					citext 	primary key,
-    display_name 				text,
-    accepting_new 				bool	not null default true,
-    limit_recv_size_total 		bigint	not null default -1,
-    limit_recv_size_per_msg 	bigint	not null default -1,
-    limit_recv_size_per_1d 		bigint	not null default -1,
-    limit_recv_count_per_1d 	bigint	not null default -1,
-    limit_send_size_total 		bigint	not null default -1,
-    limit_send_size_per_msg 	bigint	not null default -1,
-    limit_send_size_per_1d 		bigint	not null default -1,
-    limit_send_count_per_1d 	bigint	not null default -1
-);
-
--- TODO consider time-series datastore e.g. TimescaleDB
-create table if not exists address_tx (
-	address	citext		not null references address (address),
-	ts		timestamp	not null,
-	op		varchar(5)	not null, -- send, recv
-	size	int			not null,
-	primary key (address, ts)
-)
-`
+type AddressDetail struct {
+    Address           	string 	`json:"address"`
+    DisplayName       	string 	`json:"displayName"`
+    AcceptingNew      	bool   	`json:"acceptingNew"`
+    LimitRecvSizeTotal 	int64   `json:"limitRecvSizeTotal"`
+    LimitRecvSizePerMsg int64  	`json:"limitRecvSizePerMsg"`
+    LimitRecvSizePer1d 	int64   `json:"limitRecvSizePer1d"`
+    LimitRecvCountPer1d int64   `json:"limitRecvCountPer1d"`
+    LimitSendSizeTotal 	int64   `json:"limitSendSizeTotal"`
+    LimitSendSizePerMsg int64   `json:"limitSendSizePerMsg"`
+    LimitSendSizePer1d 	int64   `json:"limitSendSizePer1d"`
+    LimitSendCountPer1d int64	`json:"limitSendCountPer1d"`
+    RecvSizeTotal      	int64   `json:"recvSizeTotal"`
+    RecvSizePer1d      	int64   `json:"recvSizePer1d"`
+    RecvCountPer1d     	int64   `json:"recvCountPer1d"`
+    SendSizeTotal      	int64   `json:"sendSizeTotal"`
+    SendSizePer1d      	int64   `json:"sendSizePer1d"`
+    SendCountPer1d     	int64   `json:"sendCountPer1d"`
+    Tags              	[]string`json:"tags"`
+}
 
 func initDb() error {
-	db, err := pgx.Connect(context.Background(), "")
+	ctx := context.Background()
+	db, err := pgx.Connect(ctx, "")
 	if err != nil {
 		return err
 	}
-	defer db.Close()
-	err = db.Ping()
+	defer db.Close(ctx)
+	err = db.Ping(ctx)
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(sqlTables)
+	_, err = db.Exec(ctx, sqlCreateTables)
 	if err != nil {
 		return err
 	}
@@ -54,62 +56,101 @@ func initDb() error {
 }
 
 func getAddressDetail(c *gin.Context) {
-	ctx := context.Background()
+	ctx := c.Request.Context()
 
-	connString := "postgres://user:password@localhost:5432/database"
-
-	pool, err := pgxpool.Connect(ctx, connString)
+	pool, err := pgxpool.Connect(ctx, "")
 	if err != nil {
-		fmt.Println("Unable to connect to database:", err)
-		return
+		c.AbortWithError(500, err)
 	}
-
 	defer pool.Close()
 
-	rows, err := pool.Query(ctx, "SELECT * FROM table_name")
+	rows, err := pool.Query(ctx, sqlSelectAddressDetail, )
 	if err != nil {
-		fmt.Println("Query failed:", err)
+		c.AbortWithError(500, err)
+		return
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		// address not found
+		c.AbortWithStatus(404) 
 		return
 	}
 
+	var ad AddressDetail
+
+	err = rows.Scan(&ad.Address, &ad.DisplayName, &ad.AcceptingNew, &ad.LimitRecvSizeTotal, &ad.LimitRecvSizePerMsg, &ad.LimitRecvSizePer1d, &ad.LimitRecvCountPer1d, &ad.LimitSendSizeTotal, &ad.LimitSendSizePerMsg, &ad.LimitSendSizePer1d, &ad.LimitSendCountPer1d)
+	if err != nil {
+		c.AbortWithError(500, err)
+		return
+	}
+
+	// select actuals
+	rows, err = pool.Query(ctx, sqlActuals, )
+	if err != nil {
+		c.AbortWithError(500, err)
+		return
+	}
 	defer rows.Close()
 
-	for rows.Next() {
-		var name string
-		var address string
-		var displayName string
-		var acceptingNew bool
-		var limitRecvSizeTotal int64
-		var limitRecvSizePerMsg int64
-		var limitRecvSizePer1d int64
-		var limitRecvCountPer1d int64
-		var limitSendSizeTotal int64
-		var limitSendSizePerMsg int64
-		var limitSendSizePer1d int64
-		var limitSendCountPer1d int64
-		var recvSizeTotal int64
-		var recvSizePer1d int64
-		var recvCountPer1d int64
-		var sendSizeTotal int64
-		var sendSizePer1d int64
-		var sendCountPer1d int64
-
-		err = rows.Scan(&name, &address, &displayName, &acceptingNew, &limitRecvSizeTotal,
-			&limitRecvSizePerMsg, &limitRecvSizePer1d, &limitRecvCountPer1d,
-			&limitSendSizeTotal, &limitSendSizePerMsg, &limitSendSizePer1d,
-			&limitSendCountPer1d, &recvSizeTotal, &recvSizePer1d,
-			&recvCountPer1d, &sendSizeTotal, &sendSizePer1d,
-			&sendCountPer1d)
-
+	// no rows possible when haven't sent or recieved anything!
+	if rows.Next() {
+		err = rows.Scan(&ad.SendSizeTotal, &ad.SendCountPer1d, &ad.SendSizePer1d,
+			&ad.RecvSizeTotal, &ad.RecvCountPer1d, &ad.RecvSizePer1d)
 		if err != nil {
-			fmt.Println("Unable to scan row:", err)
+			c.AbortWithError(500, err)
 			return
 		}
 	}
+
+	c.JSON(http.StatusOK, ad)
+}
+
+func postAddressTxSend(c *gin.Context) {
+	postAddressTx(c, "send")
+}
+
+func postAddressTxRecv(c *gin.Context) {
+	postAddressTx(c, "recv")
+}
+
+func postAddressTx(c *gin.Context, op string) {
+	ctx := c.Request.Context()
+
+	var tx AddressTx
+	err := c.BindJSON(tx)
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	pool, err := pgxpool.Connect(ctx, "")
+	if err != nil {
+		c.AbortWithError(500, err)
+	}
+	defer pool.Close()
+
+	_, err = pool.Exec(ctx, sqlInsertTx, tx.Address, tx.Timestamp, op, tx.Size)
+	if err != nil {
+		c.AbortWithError(500, err)
+		return
+	}
+
 }
 
 func main() {
+	log.SetPrefix("fmsgid: ")
+	err := initDb()
+	if err != nil {
+		log.Fatalf("ERROR: Failed to initDb: %s", err)
+	}
+	log.Println("INFO: Database initalized")
 	r := gin.Default()
 	r.GET("/user/", getAddressDetail)
-	r.Run(":8080")
+	r.POST("/user/send", postAddressTxSend)
+	r.GET("/user/recv", postAddressTxRecv)
+	err = r.Run(":8080")
+	if err != nil {
+		log.Fatalf("ERROR: Running gin engine: %s", err)
+	}
 }
