@@ -64,7 +64,12 @@ func getAddressDetail(c *gin.Context) {
 	}
 	defer pool.Close()
 
-	rows, err := pool.Query(ctx, sqlSelectAddressDetail, )
+	addr, hasAddr := c.Params.Get("address")
+	if !hasAddr {
+		c.AbortWithStatus(400)
+	}
+
+	rows, err := pool.Query(ctx, sqlSelectAddressDetail, addr)
 	if err != nil {
 		c.AbortWithError(500, err)
 		return
@@ -79,14 +84,17 @@ func getAddressDetail(c *gin.Context) {
 
 	var ad AddressDetail
 
-	err = rows.Scan(&ad.Address, &ad.DisplayName, &ad.AcceptingNew, &ad.LimitRecvSizeTotal, &ad.LimitRecvSizePerMsg, &ad.LimitRecvSizePer1d, &ad.LimitRecvCountPer1d, &ad.LimitSendSizeTotal, &ad.LimitSendSizePerMsg, &ad.LimitSendSizePer1d, &ad.LimitSendCountPer1d)
+	err = rows.Scan(&ad.Address, &ad.DisplayName, &ad.AcceptingNew, &ad.LimitRecvSizeTotal,
+		&ad.LimitRecvSizePerMsg, &ad.LimitRecvSizePer1d, &ad.LimitRecvCountPer1d, 
+		&ad.LimitSendSizeTotal, &ad.LimitSendSizePerMsg, &ad.LimitSendSizePer1d, 
+		&ad.LimitSendCountPer1d)
 	if err != nil {
 		c.AbortWithError(500, err)
 		return
 	}
 
 	// select actuals
-	rows, err = pool.Query(ctx, sqlActuals, )
+	rows, err = pool.Query(ctx, sqlActuals, addr)
 	if err != nil {
 		c.AbortWithError(500, err)
 		return
@@ -146,9 +154,9 @@ func main() {
 	}
 	log.Println("INFO: Database initalized")
 	r := gin.Default()
-	r.GET("/user/", getAddressDetail)
-	r.POST("/user/send", postAddressTxSend)
-	r.GET("/user/recv", postAddressTxRecv)
+	r.GET("/addr/:address", getAddressDetail)
+	r.POST("/addr/send", postAddressTxSend)
+	r.POST("/addr/recv", postAddressTxRecv)
 	err = r.Run(":8080")
 	if err != nil {
 		log.Fatalf("ERROR: Running gin engine: %s", err)

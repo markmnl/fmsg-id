@@ -42,7 +42,7 @@ const sqlSelectAddressDetail string = `select
 from
 	address
 where
-	address = $1");`
+	address = $1;`
 
 const sqlInsertTx string = `insert into address_tx (address, ts, op, size) VALUES ($1, to_timestamp($2), $3, $4);`
 

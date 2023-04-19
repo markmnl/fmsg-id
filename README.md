@@ -6,6 +6,10 @@ Implementation of the [https://github.com/markmnl/fmsg/blob/main/standards/fmsg-
 
 PostgreSQL environment variables must be set for the database to use, refer to: https://www.postgresql.org/docs/current/libpq-envars.html. 
 
+```
+GIN_MODE=release
+```
+
 ## Running
 
 ```
