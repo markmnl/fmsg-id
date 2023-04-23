@@ -37,7 +37,7 @@ type AddressDetail struct {
     Tags              	[]string`json:"tags"`
 }
 
-func initDb() error {
+func testDb() error {
 	ctx := context.Background()
 	db, err := pgx.Connect(ctx, "")
 	if err != nil {
@@ -45,10 +45,6 @@ func initDb() error {
 	}
 	defer db.Close(ctx)
 	err = db.Ping(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec(ctx, sqlCreateTables)
 	if err != nil {
 		return err
 	}
@@ -148,7 +144,7 @@ func postAddressTx(c *gin.Context, op string) {
 
 func main() {
 	log.SetPrefix("fmsgid: ")
-	err := initDb()
+	err := testDb()
 	if err != nil {
 		log.Fatalf("ERROR: Failed to initDb: %s", err)
 	}
