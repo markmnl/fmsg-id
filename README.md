@@ -1,8 +1,8 @@
-[![Go](https://github.com/markmnl/fmsg-id/actions/workflows/go.yml/badge.svg)](https://github.com/markmnl/fmsg-id/actions/workflows/go.yml)
+[![Go](https://github.com/markmnl/fmsgid/actions/workflows/go.yml/badge.svg)](https://github.com/markmnl/fmsgid/actions/workflows/go.yml)
 
 # fmsgid
 
-Implementation of the [https://github.com/markmnl/fmsg/blob/main/standards/fmsg-id.md](fmsg Id standard) written in go!
+fmsgid is an implementation of the [https://github.com/markmnl/fmsg/blob/main/standards/fmsgid.md](fmsg Id standard) written in go! An fmsg host uses this API to determine if an address exists and associated attributes such as display name and messaging limits.
 
 ## Environment
 

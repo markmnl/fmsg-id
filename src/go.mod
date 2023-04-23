@@ -1,4 +1,4 @@
-module github.com/markmnl/fmsg-id
+module github.com/markmnl/fmsgid
 
 go 1.18
 

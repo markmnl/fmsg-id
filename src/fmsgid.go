@@ -48,8 +48,10 @@ func testDb() error {
 	if err != nil {
 		return err
 	}
+	// TODO check at least tables exist
 	return nil
 }
+
 
 func getAddressDetail(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -60,6 +62,7 @@ func getAddressDetail(c *gin.Context) {
 	}
 	defer pool.Close()
 
+	// TODO move data to body to hide
 	addr, hasAddr := c.Params.Get("address")
 	if !hasAddr {
 		c.AbortWithStatus(400)
@@ -97,7 +100,7 @@ func getAddressDetail(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	// no rows possible when haven't sent or recieved anything!
+	// no rows is possible when haven't sent or recieved anything!
 	if rows.Next() {
 		err = rows.Scan(&ad.SendSizeTotal, &ad.SendCountPer1d, &ad.SendSizePer1d,
 			&ad.RecvSizeTotal, &ad.RecvCountPer1d, &ad.RecvSizePer1d)
@@ -122,8 +125,9 @@ func postAddressTx(c *gin.Context, op string) {
 	ctx := c.Request.Context()
 
 	var tx AddressTx
-	err := c.BindJSON(tx)
+	err := c.BindJSON(&tx)
 	if err != nil {
+		log.Printf("WARN: Parsing AddressTx: %s\n", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
