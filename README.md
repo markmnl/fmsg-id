@@ -1,3 +1,5 @@
+[![Go](https://github.com/markmnl/fmsg-id/actions/workflows/go.yml/badge.svg)](https://github.com/markmnl/fmsg-id/actions/workflows/go.yml)
+
 # fmsgid
 
 Implementation of the [https://github.com/markmnl/fmsg/blob/main/standards/fmsg-id.md](fmsg Id standard) written in go!
